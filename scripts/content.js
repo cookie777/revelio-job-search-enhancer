@@ -3,12 +3,12 @@ console.log("✅");
 
 // Listen for messages from background.js
 chrome.runtime.onMessage.addListener(async function(request, sender, sendResponse) {
-    console.log("content listener 🔥")
+    console.log("content listener 🔥");
     if (request.message === 'urlChanged') {
         console.log('URL change detected in content.js:', request.url);
         const jobId = parseJobId(request.url);
-        const clickCounts = await fetchPostDetails(jobId);
-        insertNumberOfApplications(clickCounts);
+        const trueApplications = await fetchPostDetails(jobId);
+        insertNumberOfApplications(Number(trueApplications));
     }
 });
 
@@ -70,12 +70,16 @@ async function fetchPostDetails(jobId){
   } 
 ;
 
-function insertNumberOfApplications(clickCounts) {
-    if (clickCounts == null) { return; }
+function insertNumberOfApplications(trueApplications) {
+    // Over 100 applicants
+    const container = document.querySelector('.job-details-jobs-unified-top-card__primary-description-container');
+    const aggregatedApplicants = extractApplicants(container);
+    const applicants = Math.max(trueApplications, aggregatedApplicants)
+    if (applicants == null) { return; }
 
     const customClassName = 'custom-job-info-by-chrome-extension';
-    const container = document.querySelector('.job-details-jobs-unified-top-card__primary-description-container');
     console.log(container.nextElementSibling.classList)
+    // clean up existing elements.
     if (container.nextElementSibling.classList.contains(customClassName)) {
         container.nextElementSibling.remove(customClassName);
         console.log("remove the class")
@@ -83,19 +87,19 @@ function insertNumberOfApplications(clickCounts) {
 
     const newElement = document.createElement('span');
     newElement.className = `${customClassName} tvm__text tvm__text--low-emphasis`;
-    newElement.innerHTML = `<strong>👁️ ${clickCounts} applies </strong>`;
+    newElement.innerHTML = `<strong>👁️ ${applicants} applies </strong>`;
     container.insertAdjacentElement('afterend', newElement);
 }
 
-/*
-TODO
-hi
-- transiton to /jobs/ not working
-- error handling
-- tripple called
-- switch
-lo
-- refactor
-- compare to real one
+// Function to extract the number of applicants
+function extractApplicants(container) {
+    // Get all span elements with the specified class
+    const spans = container.querySelectorAll('.tvm__text.tvm__text--low-emphasis');
 
-*/
+    // Loop through all the found span elements
+    const match = spans[spans.length - 1].textContent.match(/(\d+)\s+applicants/);
+    if (match) {
+        return Number(match[1]);
+    };
+    return null;
+}
