@@ -1,0 +1,20 @@
+{
+    "manifest_version": 3,
+    "name": "Revelio/LinkedIn",
+    "version": "1.0",
+    "description": "Reveal the number of applications in LinkedIn job-postings",
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": "images/icon.png"
+    },
+    "permissions": ["activeTab","tabs"],
+    "background": {
+      "service_worker": "scripts/background.js"
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://www.linkedin.com/jobs/*"],
+        "js": ["scripts/content.js"]
+      }
+    ]
+  }
