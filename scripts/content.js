@@ -1,105 +1,139 @@
 
-console.log("✅");
-
 // Listen for messages from background.js
 chrome.runtime.onMessage.addListener(async function(request, sender, sendResponse) {
-    console.log("content listener 🔥");
-    if (request.message === 'urlChanged') {
-        console.log('URL change detected in content.js:', request.url);
-        const jobId = parseJobId(request.url);
-        const trueApplications = await fetchPostDetails(jobId);
-        insertNumberOfApplications(Number(trueApplications));
+    console.debug("Message received in content.js:", request);
+    if (request.message != "urlChanged") {
+        console.debug("Ignoring message as it is not urlChanged");
+        return;
+    }
+    
+    console.log('URL change detected in content.js:', request.url);
+    try {
+        const jobId = getJobIdFromUrl(request.url);
+        const finalApplications = await fetchPostDetails(jobId);
+        insertNumberOfApplications(Number(finalApplications));
+    } catch (error) {
+        console.error(error);
     }
 });
 
-function parseJobId(urlString) {
+function getJobIdFromUrl(urlString) {
+
     // check jobId in url for this url pattern
-    // */jobs/view/id/*
+    // e.g, */jobs/view/id/*
     const regex = /\/view\/(\d+)(\/|\?|$)/;
     const match = urlString.match(regex);
     if (match) {
         const id = match[1]; // Extracted ID
-        if (id != null) {
-            console.log('ID found in URL as "/view/id":', id); 
+        if (id) {
+            console.debug('JobId found in URL as "/view/id":', id); 
             return id;
         }
     }
 
     // check jobId in url for this url pattern
-    // */jobs/*currentJobId=*
+    // e.g, */jobs/*currentJobId=*
     const url = new URL(urlString);
     const params = new URLSearchParams(url.search);
     const id = params.get('currentJobId'); 
-    console.log('ID found in URL as "currentJobId=":', id); 
-    return id;
+    if (id) {
+        console.debug('JobId found in URL as "currentJobId=":', id);
+        return id;
+    }
+
+    // JobId not found
+    return new Error(`JobId not found in URL: ${urlString}`);
+
 }
 
 
 
-function getCookie(name) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop().split(';').shift().replace(/"/g, '');
-};
-async function fetchPostDetails(jobId){
-    try {
-        const token = getCookie("JSESSIONID");
-        console.log(token);
-        const response = await fetch(`https://www.linkedin.com/voyager/api/jobs/jobPostings/${jobId}`, {
-            "headers": {
-                "csrf-token": `${token}`,
-              },
-              "body": null,
-              "method": "GET",
-              "mode": "cors",
-              "credentials": "include"}
-        )
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-      
-        const data = await response.json();
-        console.log('Response body as JSON:', data);  // Output the JSON response body
-        console.log("data.applies", data["applies"]);
-        return data["applies"]
-    } catch (error) {
-      // Catch and handle the error
-        console.error('Error fetching data:', error);
+function getCookieByKey(key) {
+    const cookies = document.cookie
+        .split('; ')
+        .map(cookie => cookie.split('='))
+        .reduce((acc, [k, v]) => {
+            acc[k] = v ? v.replace(/"/g, '') : '';
+            return acc;
+        }, {});
+    
+    if (!cookies[key]) {
+        const errorMessage = `Cookie ${key} not found`;
+        console.error(errorMessage);
+        return new Error(errorMessage);
+    } else {
+        console.debug(`Cookie ${key} found:`);
+        return cookies[key];
     }
-  } 
-;
+}
 
-function insertNumberOfApplications(trueApplications) {
-    // Over 100 applicants
+async function fetchPostDetails(jobId){
+    const token = getCookieByKey("JSESSIONID");
+    const response = await fetch(`https://www.linkedin.com/voyager/api/jobs/jobPostings/${jobId}`, {
+        "headers": {
+            "csrf-token": `${token}`,
+            },
+            "body": null,
+            "method": "GET",
+            "mode": "cors",
+            "credentials": "include"}
+    )
+
+    if (!response.ok) {
+        return new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    if (!data["applies"]) {
+        return new Error(`No "applies" found in response: ${JSON.stringify(data)}`);
+    } else {
+        console.debug(`"applies" found in response: ${data["applies"]}`);
+        return data["applies"]
+    }
+};
+
+function insertNumberOfApplications(fetchedApplicants) {
+    // Try to get existing applicants from the DOM
     const container = document.querySelector('.job-details-jobs-unified-top-card__primary-description-container');
-    const aggregatedApplicants = extractApplicants(container);
-    const applicants = Math.max(trueApplications, aggregatedApplicants)
-    if (applicants == null) { return; }
+    const existingApplicants = extractExistingApplicants(container);
 
-    const customClassName = 'custom-job-info-by-chrome-extension';
+    // Designate the number of applicants to display
+    // Adopt whichever is the valid and larger number. 
+    // This is because sometimes fetched one is smaller than existing(DOM) one. Probably aggregation process lag?
+    const finalApplicants = Math.max(fetchedApplicants, existingApplicants)
+    if (finalApplicants == null) {
+        const errorMessage = "Both 'fetched' and 'existing' applicants not found";
+        console.error(errorMessage);
+        return new Error(errorMessage);
+    }
+
+    // Clean up existing elements. Otherwise, it'll make a duplicate element.
+    const customClassName = 'custom-job-by-chrome-extension';
     console.log(container.nextElementSibling.classList)
-    // clean up existing elements.
     if (container.nextElementSibling.classList.contains(customClassName)) {
         container.nextElementSibling.remove(customClassName);
-        console.log("remove the class")
+        console.debug("remove the class")
     }
 
+    // Insert the new element
     const newElement = document.createElement('span');
     newElement.className = `${customClassName} tvm__text tvm__text--low-emphasis`;
-    newElement.innerHTML = `<strong>👁️ ${applicants} applies </strong>`;
+    newElement.innerHTML = `<strong>👁️ ${finalApplicants} clicks </strong>`;
     container.insertAdjacentElement('afterend', newElement);
 }
 
-// Function to extract the number of applicants
-function extractApplicants(container) {
-    // Get all span elements with the specified class
+// Extract the number of existing applicants from the DOM
+function extractExistingApplicants(container) {
+    // Existing applicants in the DOM should be in this class
     const spans = container.querySelectorAll('.tvm__text.tvm__text--low-emphasis');
 
-    // Loop through all the found span elements
-    const match = spans[spans.length - 1].textContent.match(/(\d+)\s+applicants/);
-    if (match) {
-        return Number(match[1]);
-    };
+    if (spans.length > 0) {
+        const match = spans[spans.length - 1].textContent.match(/(\d+)\s+applicants/);
+        if (match) {
+            return Number(match[1]);
+        };
+    }
+    
+    console.warn("Existing Applicants not found in the DOM");
     return null;
 }
