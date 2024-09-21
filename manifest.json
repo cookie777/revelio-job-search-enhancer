@@ -5,7 +5,7 @@
     "description": "Reveal the number of applications in LinkedIn job-postings",
     "action": {
       "default_popup": "popup.html",
-      "default_icon": "images/icon.svg"
+      "default_icon": "images/icon.png"
     },
     "permissions": ["activeTab","tabs"],
     "background": {
