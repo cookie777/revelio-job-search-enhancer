@@ -1,6 +1,6 @@
 
 
-**🪄Revelio LinkedIn Extension**
+**🪄Revelio / Job Search Enhancer
 ==========================
 
 **Description**
