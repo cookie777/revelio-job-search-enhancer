@@ -3,6 +3,10 @@
 🪄Revelio / Job Search Enhancer
 ==========================
 
+<img width="788" alt="image" src="https://github.com/user-attachments/assets/7fd3e605-5724-4e6e-b458-ec53e20d0545">
+
+
+
 **Description**
 ---------------
 
