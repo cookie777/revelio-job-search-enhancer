@@ -118,7 +118,7 @@ function insertNumberOfApplications(fetchedApplicants) {
     // Insert the new element
     const newElement = document.createElement('span');
     newElement.className = `${customClassName} tvm__text tvm__text--low-emphasis`;
-    newElement.innerHTML = `<strong>👁️ ${finalApplicants} clicks </strong>`;
+    newElement.innerHTML = `<strong>🪄 ${finalApplicants} clicks </strong>`;
     container.insertAdjacentElement('afterend', newElement);
 }
 

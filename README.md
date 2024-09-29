@@ -1,6 +1,6 @@
 
 
-**🪄Revelio / Job Search Enhancer
+🪄Revelio / Job Search Enhancer
 ==========================
 
 **Description**
